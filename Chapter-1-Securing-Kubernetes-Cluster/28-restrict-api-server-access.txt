@@ -1,0 +1,30 @@
+Restrict API Access
+
+Configure specific TLS version and cipher suites for kube-apiserver, etcd or both
+
+### /etc/kubernetes/manifests/kube-apiserver.yaml
+
+#1 - Disable anonymous access - make sure all API requests are authenticated
+
+anonymous-auth=false
+
+#2 - Enable TLS 
+
+--tls-min-version=VersionTLS12
+--tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+
+#3 - Enable node restriction plugin
+
+- --enable-admission-plugins=NodeRestriction
+
+#4 - Remove insecure port or set to zero
+
+- --insecure-port=0
+
+### /etc/kubernetes/manifests/etcd.yaml
+
+#5 - Add TLS to etcd also
+
+- --cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+
+

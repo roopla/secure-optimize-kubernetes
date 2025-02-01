@@ -1,0 +1,32 @@
+Verify platform binaries
+
+Step #1 - Get the official 1.31.4 binary of kubernetes apiserver << check version of your cluster >>
+
+wget https://dl.k8s.io/v1.31.4/kubernetes-server-linux-amd64.tar.gz
+
+Step #2 - Extract it
+tar -xvf kubernetes-server-linux-amd64.tar.gz
+
+Step #3 - Generate hash
+sha512sum kubernetes/server/bin/kube-apiserver
+
+<< save the output >>
+
+Step #4 - Get the container ID of kube-apiserver
+
+sudo crictl ps | grep -i apiserver
+
+Step #5 - Inspect the container to get the process ID (PID)
+
+sudo crictl inspect <<your-container-id>> | grep pid
+
+Step #6 - Verify that the executable points to kube-apiserver
+
+sudo ls -lh /proc/<<pid>>/exe
+
+Step #7 - Generate hash of executable
+
+sudo sha512sum /proc/<<pid>>/exe
+
+Step #8 - Compare two hashes to verify their integrity
+

@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+  labels:
+    app: my-app
+spec:
+  containers:
+  - name: my-container
+    image: nginx:latest
+    volumeMounts:
+    - mountPath: /all
+      name: podinfo
+  volumes:
+  - name: podinfo
+    projected:
+      sources:
+      - downwardAPI:
+          items:
+          - path: "name"
+            fieldRef:
+              fieldPath: metadata.name
+          - path: "labels"
+            fieldRef:
+              fieldPath: metadata.labels
+          - path: "annotations"
+            fieldRef:
+              fieldPath: metadata.annotations
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: metadata-deny
+  namespace: default
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+  - to:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+          except:
+          - 169.254.0.0/16  ## this can be used
+          - 169.254.169.254/32
+    ports:
+      - protocol: TCP
+        port: 80
+
