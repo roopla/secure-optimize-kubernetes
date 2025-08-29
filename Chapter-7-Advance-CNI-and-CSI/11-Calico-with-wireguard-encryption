@@ -1,6 +1,6 @@
 Calico with wireguard encryption
 
-Reference - https://docs.tigera.io/calico/latest/network-policy/encrypt-cluster-pod-traffic
+### Reference - https://docs.tigera.io/calico/latest/network-policy/encrypt-cluster-pod-traffic
 
 #################
 ##### STEPS #####
