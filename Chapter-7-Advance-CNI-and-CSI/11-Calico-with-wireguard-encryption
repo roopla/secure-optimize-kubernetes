@@ -1,0 +1,115 @@
+Calico with wireguard encryption
+
+Reference - https://docs.tigera.io/calico/latest/network-policy/encrypt-cluster-pod-traffic
+
+#################
+##### STEPS #####
+#################
+
+1. Install calico using manifest on Kubernetes cluster
+kubectl apply -f https://docs.tigera.io/calico/latest/manifests/calico.yaml
+
+2. Check
+
+kubectl -n kube-system get pods
+
+3. Install calicoctl
+
+curl -L https://github.com/projectcalico/calico/releases/download/v3.30.3/calicoctl-linux-amd64 -o calicoctl
+chmod +x ./calicoctl
+
+./calicoctl get nodes
+
+4. Install wireguard on all NODES you want to encrypt traffic
+
+apt update
+apt install wireguard
+
+5. Patch felix to ENABLE wireguard for 
+
+a. IPv4
+
+./calicoctl patch felixconfiguration default --type='merge' -p '{"spec":{"wireguardEnabled":true}}'
+
+b. IPv4 and IPv6
+
+./calicoctl patch felixconfiguration default --type='merge' -p '{"spec":{"wireguardEnabled":true,"wireguardEnabledV6":true}}'
+
+## In case you want to DISABLE wireguard ## 
+
+./calicoctl patch felixconfiguration default --type='merge' -p '{"spec":{"wireguardEnabled":false,"wireguardEnabledV6":false}}'
+
+6. Confirm that wireguard is enabled on nodes
+
+./calicoctl get node node-name -o yaml
+sudo wg show
+sudo wg
+kubectl get felixconfiguration default -o yaml
+
+=====
+wireguard configuration challenges
+=====
+
+1. create key pair
+2. create tunnel virtual interfaces
+3. configure endpoint address
+4. configure and keep updating allowed IP's
+5. keys are stored in memory and lost when node restart
+
+-->> solution is felix - core component of calico -- it will do all these things
+
+===
+Create two pods
+
+Pod #1 - ram.yaml in dev namespace
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ram
+spec:
+  nodeName: nodeone
+  containers:
+  - name: boxone
+    image: busybox # busybox often includes netcat
+    command: ["sleep"]
+    args: ["infinity"] # Or a specific duration like "3600"
+
+
+Pod #2 - shyam.yaml in prod namespace
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shyam
+spec:
+  nodeName: nodetwo
+  containers:
+  - name: boxone
+    image: busybox # busybox often includes netcat
+    command: ["sleep"]
+    args: ["infinity"] # Or a specific duration like "3600"
+
+################
+
+from RAM side
+
+<tab one> - (listen on port 12345)
+kubectl -n dev exec -it ram -- /bin/sh
+nc -l -p 12345
+   hello shyam
+
+<tab two> - FROM NODE - use tcpdump
+tcpdump -ni tunl0 port 12345 -A -l | grep -i hello 
+
+###############
+
+from SHYAM side 
+
+<tab three> - (send text to ram pod) - 
+kubectl -n prod exec shyam -- /bin/sh
+nc ram-pod-ip 12345
+hello ram
+
+<tab four> - FROM NODE - use tcpdump
+tcpdump -ni tunl0 port 12345 -A -l | grep -i hello
