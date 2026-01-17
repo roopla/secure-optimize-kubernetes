@@ -1,0 +1,70 @@
+{
+curl -fsSL https://falco.org/repo/falcosecurity-packages.asc | \
+sudo gpg --dearmor -o /usr/share/keyrings/falco-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/falco-archive-keyring.gpg] https://download.falco.org/packages/deb stable main" | \
+sudo tee -a /etc/apt/sources.list.d/falcosecurity.list
+
+sudo apt-get install apt-transport-https
+
+sudo apt-get update -y
+
+sudo apt install -y dkms make linux-headers-$(uname -r)
+# If you use falcoctl driver loader to build the eBPF probe locally you need also clang toolchain
+sudo apt install -y clang llvm
+# You can install also the dialog package if you want it
+sudo apt install -y dialog
+
+sudo apt-get install -y falco
+}
+
+falco --version
+
+## FALCO rule for bash shell spawn
+
+vim /etc/falco/rules.d/my-falco-rule.yaml
+
+- macro: container
+  condition: container.id != host
+
+- macro: spawned_process
+  condition: (evt.type in (execve, execveat))
+
+- rule: shell_in_container
+  desc: notice shell activity within a container
+  condition: >
+    spawned_process and container and proc.name = zsh    
+  output: >
+    Shell spawned in a container (user=%user.name container_id=%container.id container_name=%container.name shell=%proc.name namespace=%k8s.ns.name pod=%k8s.pod.name)
+  priority: WARNING
+
+## file end here
+
+## Apply rule for falco on node
+sudo falco -r /etc/falco/rules.d/my-falco-rule.yaml
+
+## From Manager run a pod which will create shell
+
+kubectl run hacker -it --rm --image=nicolaka/netshoot
+kubectl run tmp-shell --rm -i --tty --image nicolaka/netshoot -- /bin/bash
+
+##Go back to node and see falco has detected a shell spawn
+
+## FALCO rule for package manager - ADD rules
+
+vim /etc/falco/rules.d/my-falco-rule.yaml
+
+- rule: package_manager_in_container
+  desc: Detect when a package manager process runs inside a container
+  condition: spawned_process and container and proc.name in (apt, yum, apk)
+  output: "Package manager process '%proc.name' running inside container (container.id=%container.id)"
+  priority: WARNING
+
+
+## RUN falco in background for specific time and capture output in file
+
+sudo falco -r /etc/falco/rules.d/my-falco-rule.yaml -M 30 | tee falco-logs.txt
+
+## Default location of falco logs
+
+/var/log/syslog
+
