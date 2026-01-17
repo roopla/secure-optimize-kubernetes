@@ -68,3 +68,5 @@ sudo falco -r /etc/falco/rules.d/my-falco-rule.yaml -M 30 | tee falco-logs.txt
 
 /var/log/syslog
 
+## You should be good with crictl command line also
+
